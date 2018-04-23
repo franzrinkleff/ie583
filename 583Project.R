@@ -11,7 +11,7 @@ library(xgboost)
 library(ggplot2)
 library(lubridate)
 
-set.seed(1234)
+set.seed(3456)
 
 numberRows = 100000
 #projDS <- fread('C:/Users//franz_000/Desktop/583/project/train_sample.csv', stringsAsFactors = F, nrows=numberRows)
@@ -31,8 +31,6 @@ table(projDS$class)
 
 #derived variables
 
-#the hour minute and am_pm_ do not appear to be working.  
-projDS$click_time <- as.POSIXct(as.character(projDS$click_time))
 projDS <- projDS %>% 
   mutate(hour = hour(click_time),
          minute = minute(click_time),
@@ -45,7 +43,7 @@ projDS <- projDS %>%
          ip_app = paste(ip,'-',app),
          channel_app = paste(channel,'-',app),
          channel_app_os_device = paste(channel,'-',app,'-',os,'-',device),
-         channel_os_device = paste(channel,'-',os,'-',device)
+         channel_os_device = paste(channel,os,device)
   )    
 head(projDS)
 
@@ -86,11 +84,14 @@ plot(Boruta.projTrain)
 projTrainFS<-projTrain[, c(1,2,3,4,5,8,12,13,14,15,16,17,18,19,20)]
 head(projTrainFS)
 
-projTrainFS<-projTrain[, c(1,2,3,4,5,8,20)]
+projTrainFS<-projTrain[, c(1,2,3,4,5,8,18)] # rf .99299?
+head(projTrainFS)
+
+projTrainFS<-projTrain[, c(8,13,18)] # rf .99299?
 head(projTrainFS)
 
 #cross validation with SMOTE J48
-cvCount = 5
+cvCount = 3
 ctrl_cv = trainControl(method = "cv", number = cvCount, savePred = T, classProb = T, sampling="smote")
 #ctrl_cv = trainControl(method = "cv", number = cvCount, savePred = T, classProb = T, sampling="down")
 #treeGrid_dectree = expand.grid(C=(1:5)*0.1, M=(1:5))
@@ -112,11 +113,35 @@ for(f in 1:cvCount){
 mean(train.accuracy.estimate)
 mean(fold.accuracy.estimate)
 
+#cross validation with SMOTE NB
+cvCount = 3
+ctrl_cv = trainControl(method = "cv", number = cvCount, savePred = T, classProb = T, sampling="smote")
+#ctrl_cv = trainControl(method = "cv", number = cvCount, savePred = T, classProb = T, sampling="down")
+#treeGrid_dectree = expand.grid(C=(1:5)*0.1, M=(1:5))
+#treeGrid_dectree = expand.grid(C=(1:1)*0.1, M=(1:1))
+folds = split(sample(nrow(projTrainFS), nrow(projTrainFS),replace=FALSE), as.factor(1:cvCount))
+train.accuracy.estimate = NULL
+fold.accuracy.estimate = NULL
+for(f in 1:cvCount){
+  testData = projTrainFS[folds[[f]],]
+  trainingData = projTrainFS[-folds[[f]],]
+  #smote
+  trainingData2 = SMOTE(class~., data=trainingData)
+  #trainingData2 = trainingData
+  model_dectree = train(class~., data=trainingData2, method="nb", trControl=ctrl_cv)
+  best<-as.numeric(model_dectree$bestTune)
+  train.accuracy.estimate[f] = as.numeric(model_dectree$results[best,3])
+  fold.accuracy.estimate[f] = (table(predict(model_dectree,testData),testData$class)[1,1]+table(predict(model_dectree,testData),testData$class)[2,2])/length(testData$class)
+}
+mean(train.accuracy.estimate)
+mean(fold.accuracy.estimate)
+
+
 #random forest with cross validation
 model<-randomForest(class~.,data=projTrain) 
 varImpPlot(model)
 
-cvCount = 5
+cvCount = 3
 ctrl_cv = trainControl(method = "cv", number = cvCount, savePred = T, classProb = T, sampling="smote")
 cols = ncol(projTrainFS)
 tunegrid <- expand.grid(.mtry=c(1:cols))
