@@ -8,7 +8,7 @@ library(randomForest)
 
 set.seed(1234)
 
-numberRows = 500
+numberRows = 1000
 projDS <- fread('C:/Users//franz_000/Desktop/583/project/train_sample.csv', stringsAsFactors = F, nrows=numberRows)
 summary(projDS)
 
@@ -76,7 +76,7 @@ plot(Boruta.projTrain)
 projTrainFS<-projTrain[, c(1,2,3,4,5,6,8,9,10,11,12,13,14,15,16,17,18,19,20)]
 head(projTrainFS)
 
-projTrainFS<-projTrain[, c(1,2,3,4,5,6,8,12,13,14,15,16,17,18,19,20)]
+projTrainFS<-projTrain[, c(1,2,3,4,5,8)]
 head(projTrainFS)
 
 #cross validation with SMOTE J48
